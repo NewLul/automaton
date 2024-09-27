@@ -15,7 +15,7 @@ impl Traversable for char {
 }
 
 pub trait State { 
-    fn next(&self, str: &str) -> Vec<(String, String)>;
+    fn next(&self, str: &str) -> Vec<(i32, String)>;
 }
 
 #[cfg(test)]
