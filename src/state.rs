@@ -1,15 +1,15 @@
 pub trait Traversable {
-    fn go<'a>(&'a self, str: &'a str) -> Option<&str>;
+    fn go<'a>(&self, str: &'a str) -> Option<&'a str>;
 }
 
 impl Traversable for String {
-    fn go<'a>(&'a self, str: &'a str) -> Option<&str> {
+    fn go<'a>(&self, str: &'a str) -> Option<&'a str> {
         str.strip_prefix(self)
     }
 }
 
 impl Traversable for char {
-    fn go<'a>(&'a self, str: &'a str) -> Option<&str> {
+    fn go<'a>(&self, str: &'a str) -> Option<&'a str> {
         str.strip_prefix(*self)
     }
 }
