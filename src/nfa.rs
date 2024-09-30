@@ -85,9 +85,9 @@ impl Nfa<String> {
                 let cur = queue.pop_front().unwrap();
                 is_terminal |= result.states[&cur].is_terminal;
                 used[cur as usize] = true;
-                for (transition_word, next_state) in self.states[&cur].transitions.iter() {
-                    if transition_word.len() > 0 {
-                        new_transitions.push((transition_word.clone(), next_state.clone()));
+                for (word, next_state) in self.states[&cur].transitions.iter() {
+                    if word.len() > 0 {
+                        new_transitions.push((word.clone(), *next_state));
                     } else if !used[*next_state as usize] {
                         queue.push_back(*next_state);
                     }
@@ -96,6 +96,40 @@ impl Nfa<String> {
             result.states.get_mut(idx).unwrap().transitions = new_transitions;
             result.states.get_mut(idx).unwrap().is_terminal = is_terminal;
         }
+        result
+    }
+
+    pub fn split_words(&self) -> Nfa<char> {
+        let nfa = self.compress_eps();
+        let mut result: Nfa<char> = Nfa::new(nfa.starting_state);
+
+        for (idx, state) in nfa.states.iter() {
+            result.add_state(NfaState::new(*idx, state.is_terminal));
+        }
+
+        for (idx, _) in nfa.states.iter() {
+            for (word, next_state) in nfa.states[&idx].transitions.iter() {
+                if word.len() == 1 {
+                    result.states.get_mut(idx)
+                                 .unwrap()
+                                 .add_transition(word.chars().next().unwrap(), *next_state);
+                } else {
+                    for i in 0..word.len() - 1 {
+                        let new_idx = *result.states.keys().next_back().unwrap() + 1;
+                        result.states.get_mut(idx)
+                                     .unwrap()
+                                     .add_transition(word.chars().nth(i).unwrap(), new_idx);
+                        result.add_state(NfaState::new(new_idx, false));
+                        if i == word.len() - 2 {
+                            result.states.get_mut(&new_idx)
+                                         .unwrap()
+                                         .add_transition(word.chars().nth(word.len() - 1).unwrap(), *next_state);
+                        }
+                    }
+                }
+            }
+        }
+
         result
     }
 }
