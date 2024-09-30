@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque, BTreeSet};
 use std::fmt::Display;
-use crate::automaton::Automaton;
+use crate::automaton::*;
 use crate::state::*;
+use crate::dfa::{DfaState, Dfa, ToDfa};
 use std::fmt;
 
 #[derive(Clone)]
@@ -39,8 +39,8 @@ impl<T: Traversable + Display + Clone> State for NfaState<T> {
 
 #[derive(Clone)]
 pub struct Nfa<T: Traversable + Display + Clone> {
-    starting_state: i32,
-    states: BTreeMap<i32, NfaState<T>>
+    pub starting_state: i32,
+    pub states: BTreeMap<i32, NfaState<T>>
 }
 
 impl<T: Traversable + Display + Clone> Nfa<T> {
@@ -133,6 +133,60 @@ impl Nfa<String> {
         result
     }
 }
+
+impl ToDfa for Nfa<char> {
+    fn to_dfa(&self) -> Dfa {
+        let mut dfa = Dfa::new(1 << self.starting_state);
+        let mut queue: VecDeque<i32> = VecDeque::new();
+        let mut alphabet: BTreeSet<char> = BTreeSet::new();
+        for (_, state) in self.states.iter() {
+            for (ch, _) in state.transitions.iter() {
+                alphabet.insert(*ch);
+            }
+        }
+        queue.push_back(1);
+        while !queue.is_empty() {
+            let cur = queue.pop_back().unwrap();
+            let mut is_terminal = false;
+            for i in 0..self.states.len() {
+                if (cur >> i & 1) == 0 {
+                    continue;
+                }
+                is_terminal |= self.states[&(i as i32)].is_terminal;
+            }
+            let mut cur_state = DfaState::new(cur, is_terminal);
+            for ch in alphabet.iter() {
+                let mut q: i32 = 0;
+                for i in 0..self.states.len() {
+                    if (cur >> i & 1) == 0 {
+                        continue;
+                    }
+                    for (transition, idx) in self.states[&(i as i32)].transitions.iter() {
+                        if transition == ch {
+                            q |= 1 << idx;
+                        }
+                    }
+                }
+                if q == 0 {
+                    continue;
+                }
+                cur_state.add_transition(*ch, q);
+                if !dfa.states.contains_key(&q) {
+                    queue.push_back(q);
+                }
+            }
+            dfa.add_state(cur_state);
+        }
+        dfa
+    }
+}
+
+impl ToDfa for Nfa<String> {
+    fn to_dfa(&self) -> Dfa {
+        self.compress_eps().split_words().to_dfa()
+    }
+}
+
 
 impl<T: Traversable + Display + Clone> fmt::Display for Nfa<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
