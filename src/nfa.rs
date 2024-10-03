@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque, BTreeSet};
 use std::fmt::Display;
-use crate::automaton::*;
+use crate::{automaton::*, ToMinimalCompleteDfa};
 use crate::state::*;
 use crate::dfa::{Dfa, DfaState, ToCompleteDfa, ToDfa};
 use std::fmt;
@@ -207,6 +207,17 @@ impl ToCompleteDfa for Nfa<char> {
     }
 }
 
+impl ToMinimalCompleteDfa for Nfa<String> {
+    fn to_mcdfa(&self) -> Dfa {
+        self.to_cdfa().to_mcdfa()
+    }
+}
+
+impl ToMinimalCompleteDfa for Nfa<char> {
+    fn to_mcdfa(&self) -> Dfa {
+        self.to_cdfa().to_mcdfa()
+    }
+}
 
 impl<T: Traversable + Display + Clone> fmt::Display for Nfa<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
