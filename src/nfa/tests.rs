@@ -141,6 +141,50 @@ fn nfa_to_mcdfa() {
     assert_eq!(mcdfa.accept("bbb"), false);
 }
 
+#[test]
+fn nfa_to_regex_1() {
+    let mut q0: NfaState<String> = NfaState::new(0, false);
+    q0.add_transition(String::from("a"), 0);
+    q0.add_transition(String::from("b"), 0);
+    q0.add_transition(String::from("a"), 1);
+    
+    let mut q1: NfaState<String> = NfaState::new(1, true);
+    q1.add_transition(String::from("b"), 1);
+    q1.add_transition(String::from("b"), 0);
+    
+    let mut nfa: Nfa<String> = Nfa::new(0);
+    nfa.add_state(q0);
+    nfa.add_state(q1);
+
+    assert_eq!(nfa.to_regex(), "(b)*a((a+b))*");
+}
+
+#[test]
+fn nfa_to_regex_2() {
+    let mut q0: NfaState<char> = NfaState::new(0, false);
+    q0.add_transition('a', 1);
+    q0.add_transition('a', 2);
+    q0.add_transition('b', 2);
+    
+    let mut q1: NfaState<char> = NfaState::new(1, false);
+    q1.add_transition('a', 2);
+    q1.add_transition('b', 3);
+    
+    let mut q2: NfaState<char> = NfaState::new(2, false);
+    q2.add_transition('a', 1);
+    q2.add_transition('a', 2);
+    q2.add_transition('b', 3);
+
+    let q3: NfaState<char> = NfaState::new(3, true);
+
+    let mut nfa: Nfa<char> = Nfa::new(0);
+    nfa.add_state(q0);
+    nfa.add_state(q1);
+    nfa.add_state(q2);
+    nfa.add_state(q3);
+
+    assert_eq!(nfa.to_regex(), "bb+(a+ba)(a)*b");
+}
 
 #[test]
 #[should_panic]

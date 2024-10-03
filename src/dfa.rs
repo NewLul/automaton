@@ -1,33 +1,34 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 
-use crate::automaton::Automaton;
+use crate::automaton::{Automaton, ToRegex};
+use crate::nfa::*;
 
 #[derive(Clone)]
 pub struct DfaState {
-    pub index: i32,
+    pub index: usize,
     pub is_terminal: bool,
-    transitions: Vec<(char, i32)>
+    transitions: Vec<(char, usize)>
 }
 
 impl DfaState {
-    pub fn new(index: i32, is_terminal: bool) -> Self {
+    pub fn new(index: usize, is_terminal: bool) -> Self {
         Self{index: index, is_terminal: is_terminal, transitions: Vec::new()}
     }
 
-    pub fn add_transition(&mut self, sym: char, next_state: i32) {
+    pub fn add_transition(&mut self, sym: char, next_state: usize) {
         self.transitions.push((sym, next_state));
     }
 }
 
 #[derive(Clone)]
 pub struct Dfa {
-    pub starting_state: i32,
-    pub states: BTreeMap<i32, DfaState>
+    pub starting_state: usize,
+    pub states: BTreeMap<usize, DfaState>
 }
 
 impl Dfa {
-    pub fn new(starting_state: i32) -> Self {
+    pub fn new(starting_state: usize) -> Self {
         Self{starting_state: starting_state, states: BTreeMap::new()}
     }
     
@@ -51,7 +52,7 @@ impl Dfa {
 
 impl Automaton<'_> for Dfa {
     fn accept<'a>(&self, str: &'a str) -> bool {
-        let mut cur: i32 = self.starting_state;
+        let mut cur = self.starting_state;
         for i in 0..str.len() {
             let mut success = false;
             for (ch, next_state) in self.states[&cur].transitions.iter() {
@@ -123,8 +124,8 @@ impl ToMinimalCompleteDfa for Dfa {
                 continue;
             }
             reachable[cur] = true;
-            is_terminal[cur] = cdfa.states[&(cur as i32)].is_terminal;
-            for (ch, next_state) in cdfa.states[&(cur as i32)].transitions.clone() {
+            is_terminal[cur] = cdfa.states[&cur].is_terminal;
+            for (ch, next_state) in cdfa.states[&cur].transitions.clone() {
                 edge[cur][next_state as usize] = ch;
                 if !reachable[next_state as usize] {
                     queue.push_back(next_state as usize);
@@ -192,7 +193,7 @@ impl ToMinimalCompleteDfa for Dfa {
             }
         }
 
-        let mut mcdfa = Dfa::new(component[cdfa.starting_state as usize]);
+        let mut mcdfa = Dfa::new(component[cdfa.starting_state] as usize);
         
         for i in 0..(component_count + 1) {
             let mut is_terminal = true;
@@ -201,20 +202,48 @@ impl ToMinimalCompleteDfa for Dfa {
                 if component[j] != i || !reachable[j] {
                     continue;
                 }
-                is_terminal &= cdfa.states[&(j as i32)].is_terminal;
-                for (ch, state) in cdfa.states[&(j as i32)].transitions.clone() {
+                is_terminal &= cdfa.states[&j].is_terminal;
+                for (ch, state) in cdfa.states[&j].transitions.clone() {
                     transitions[component[state as usize] as usize].insert(ch);
                 }
             }
-            let mut new_state = DfaState::new(i, is_terminal);
+            let mut new_state = DfaState::new(i as usize, is_terminal);
             for (j, set) in transitions.iter().enumerate() {
                 for ch in set {
-                    new_state.add_transition(*ch, j as i32);
+                    new_state.add_transition(*ch, j);
                 }
             }
             mcdfa.add_state(new_state);
         }
         mcdfa
+    }
+}
+
+impl Dfa {
+    pub fn complement(&self) -> Dfa {
+        let mut cdfa = self.to_cdfa();
+        for (_, state) in cdfa.states.iter_mut() {
+            state.is_terminal = !state.is_terminal;
+        }
+        cdfa
+    }
+
+    pub fn to_nfa(&self) -> Nfa<String> {
+        let mut nfa: Nfa<String> = Nfa::new(self.starting_state);
+        for (idx, state) in self.states.iter() {
+            let mut nfa_state: NfaState<String> = NfaState::new(*idx, state.is_terminal);
+            for (ch, next_state) in state.transitions.iter() {
+                nfa_state.add_transition(String::from(*ch), *next_state);
+            }
+            nfa.add_state(nfa_state);
+        }
+        nfa
+    }
+}
+
+impl ToRegex for Dfa {
+    fn to_regex(&self) -> String {
+        self.to_nfa().to_regex()
     }
 }
 pub trait ToDfa {
