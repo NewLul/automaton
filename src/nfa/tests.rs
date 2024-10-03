@@ -107,6 +107,42 @@ fn nfa_to_dfa_size_test() {
 }
 
 #[test]
+fn nfa_to_mcdfa() {
+    let mut q0: NfaState<char> = NfaState::new(0, false);
+    q0.add_transition('a', 1);
+    q0.add_transition('a', 2);
+    q0.add_transition('b', 2);
+    
+    let mut q1: NfaState<char> = NfaState::new(1, false);
+    q1.add_transition('a', 2);
+    q1.add_transition('b', 3);
+    
+    let mut q2: NfaState<char> = NfaState::new(2, false);
+    q2.add_transition('a', 1);
+    q2.add_transition('a', 2);
+    q2.add_transition('b', 3);
+
+    let q3: NfaState<char> = NfaState::new(3, true);
+
+    let mut nfa: Nfa<char> = Nfa::new(0);
+    nfa.add_state(q0);
+    nfa.add_state(q1);
+    nfa.add_state(q2);
+    nfa.add_state(q3);
+
+    let mcdfa = nfa.to_mcdfa();
+
+    assert_eq!(mcdfa.states.len(), 4);
+    assert_eq!(mcdfa.accept("ab"), true);
+    assert_eq!(mcdfa.accept("aaaaaab"), true);
+    assert_eq!(mcdfa.accept("baab"), true);
+    assert_eq!(mcdfa.accept("bb"), true);
+    assert_eq!(mcdfa.accept("aaaa"), false);
+    assert_eq!(mcdfa.accept("bbb"), false);
+}
+
+
+#[test]
 #[should_panic]
 fn duplicate_index_test() {
     let q0: NfaState<char> = NfaState::new(0, false);
