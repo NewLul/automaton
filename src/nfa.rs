@@ -249,7 +249,7 @@ impl ToRegex for Nfa<String> {
         new_nfa.add_state(new_start);
         new_nfa.starting_state = max + 1;
 
-        let mut new_end: NfaState<String> = NfaState::new(max + 2, true);
+        let new_end: NfaState<String> = NfaState::new(max + 2, true);
         for (_, state) in new_nfa.states.iter_mut() {
             if state.is_terminal {
                 state.is_terminal = false;
