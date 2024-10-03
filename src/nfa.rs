@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, VecDeque, BTreeSet};
 use std::fmt::Display;
 use crate::automaton::*;
 use crate::state::*;
-use crate::dfa::{DfaState, Dfa, ToDfa};
+use crate::dfa::{Dfa, DfaState, ToCompleteDfa, ToDfa};
 use std::fmt;
 
 #[derive(Clone)]
@@ -49,6 +49,9 @@ impl<T: Traversable + Display + Clone> Nfa<T> {
     }
     
     pub fn add_state(&mut self, state: NfaState<T>) {
+        if self.states.contains_key(&state.index) {
+            panic!("State index duplicate!");
+        }
         self.states.insert(state.index, state);
     }
 }
@@ -144,9 +147,12 @@ impl ToDfa for Nfa<char> {
                 alphabet.insert(*ch);
             }
         }
-        queue.push_back(1);
+        queue.push_back(1 << self.starting_state);
         while !queue.is_empty() {
             let cur = queue.pop_back().unwrap();
+            if dfa.states.contains_key(&cur) {
+                continue;
+            }
             let mut is_terminal = false;
             for i in 0..self.states.len() {
                 if (cur >> i & 1) == 0 {
@@ -183,7 +189,21 @@ impl ToDfa for Nfa<char> {
 
 impl ToDfa for Nfa<String> {
     fn to_dfa(&self) -> Dfa {
-        self.compress_eps().split_words().to_dfa()
+        let a = self.compress_eps();
+        let b = a.split_words();
+        b.to_dfa()
+    }
+}
+
+impl ToCompleteDfa for Nfa<String> {
+    fn to_cdfa(&self) -> Dfa {
+        self.to_dfa().to_cdfa()
+    }
+}
+
+impl ToCompleteDfa for Nfa<char> {
+    fn to_cdfa(&self) -> Dfa {
+        self.to_dfa().to_cdfa()
     }
 }
 

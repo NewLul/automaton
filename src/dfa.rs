@@ -1,6 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+use crate::automaton::Automaton;
+
+#[derive(Clone)]
 pub struct DfaState {
     pub index: i32,
     pub is_terminal: bool,
@@ -17,6 +20,7 @@ impl DfaState {
     }
 }
 
+#[derive(Clone)]
 pub struct Dfa {
     pub starting_state: i32,
     pub states: BTreeMap<i32, DfaState>
@@ -28,10 +32,70 @@ impl Dfa {
     }
     
     pub fn add_state(&mut self, state: DfaState) {
+        if self.states.contains_key(&state.index) {
+            panic!("State index duplicate!");
+        }
         self.states.insert(state.index, state);
     }
 }
 
+impl Automaton<'_> for Dfa {
+    fn accept<'a>(&self, str: &'a str) -> bool {
+        let mut cur: i32 = self.starting_state;
+        for i in 0..str.len() {
+            let mut success = false;
+            for (ch, next_state) in self.states[&cur].transitions.iter() {
+                if *ch == str.chars().nth(i).unwrap() {
+                    cur = *next_state;
+                    success = true;
+                    break;
+                }
+            }
+            if !success {
+                return false
+            }
+        }
+        self.states[&cur].is_terminal
+    }
+}
+
+pub trait ToCompleteDfa {
+    fn to_cdfa(&self) -> Dfa;
+}
+
+impl ToCompleteDfa for Dfa {
+    fn to_cdfa(&self) -> Dfa {
+        let mut cdfa = self.clone();
+        let mut alphabet: BTreeSet<char> = BTreeSet::new();
+        let mut needed = false;
+        for (_, state) in self.states.iter() {
+            for (ch, _) in state.transitions.iter() {
+                alphabet.insert(*ch);
+            }
+        }
+        let virtual_index = self.states.keys().next_back().unwrap() + 1;
+        let mut virtual_state = DfaState::new(virtual_index, false);
+        for ch in &alphabet {
+            virtual_state.add_transition(*ch, virtual_index);
+        }
+        for (_, state) in cdfa.states.iter_mut() {
+            let mut exist: BTreeSet<char> = BTreeSet::new();
+            for (ch, _) in state.transitions.iter() {
+                exist.insert(*ch);
+            }
+            for ch in &alphabet {
+                if !exist.contains(ch) {
+                    needed = true;
+                    state.add_transition(*ch, virtual_index);
+                }
+            }
+        }
+        if needed {
+            cdfa.add_state(virtual_state);
+        }
+        cdfa
+    }
+}
 pub trait ToDfa {
     fn to_dfa(&self) -> Dfa;
 }
@@ -53,3 +117,6 @@ impl fmt::Display for Dfa {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;
